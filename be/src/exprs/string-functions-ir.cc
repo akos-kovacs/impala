@@ -84,6 +84,11 @@ StringVal StringFunctions::Right(
 StringVal StringFunctions::Space(FunctionContext* context, const BigIntVal& len) {
   if (len.is_null) return StringVal::null();
   if (len.val <= 0) return StringVal();
+  if (len.val > StringVal::MAX_LENGTH) {
+    context->SetError("String length larger than allowed limit "
+                      "of 1 GB character data.");
+    return StringVal::null();
+  }
   StringVal result(context, len.val);
   if (UNLIKELY(result.is_null)) return StringVal::null();
   memset(result.ptr, ' ', len.val);
@@ -125,7 +130,11 @@ StringVal StringFunctions::Lpad(FunctionContext* context, const StringVal& str,
   // TODO: Hive seems to go into an infinite loop if pad.len == 0,
   // so we should pay attention to Hive's future solution to be compatible.
   if (len.val <= str.len || pad.len == 0) return StringVal(str.ptr, len.val);
-
+  if (len.val > StringVal::MAX_LENGTH) {
+    context->SetError("String length larger than allowed limit "
+                      "of 1 GB character data.");
+    return StringVal::null();
+  }
   StringVal result(context, len.val);
   if (UNLIKELY(result.is_null)) return StringVal::null();
   int padded_prefix_len = len.val - str.len;
@@ -152,6 +161,11 @@ StringVal StringFunctions::Rpad(FunctionContext* context, const StringVal& str,
   // so we should pay attention to Hive's future solution to be compatible.
   if (len.val <= str.len || pad.len == 0) {
     return StringVal(str.ptr, len.val);
+  }
+  if (len.val > StringVal::MAX_LENGTH) {
+    context->SetError("String length larger than allowed limit "
+                      "of 1 GB character data.");
+    return StringVal::null();
   }
 
   StringVal result(context, len.val);
@@ -865,11 +879,18 @@ StringVal StringFunctions::Concat(
   if (num_children == 1) return strs[0];
 
   // Loop once to compute the final size and reserve space.
-  int32_t total_size = 0;
+  int64_t total_size = 0;
   for (int32_t i = 0; i < num_children; ++i) {
     if (strs[i].is_null) return StringVal::null();
     total_size += strs[i].len;
   }
+
+  if (total_size > StringVal::MAX_LENGTH) {
+    context->SetError("String length larger than allowed limit "
+                      "of 1 GB character data.");
+    return StringVal::null();
+  }
+
   // If total_size is zero, directly returns empty string
   if (total_size <= 0) return StringVal();
 
@@ -895,7 +916,7 @@ StringVal StringFunctions::ConcatWs(FunctionContext* context, const StringVal& s
   // count.
   int32_t valid_num_children = 0;
   int32_t valid_start_index = -1;
-  int32_t total_size = 0;
+  int64_t total_size = 0;
   for (int32_t i = 0; i < num_children; ++i) {
     if (strs[i].is_null) continue;
 
@@ -909,6 +930,12 @@ StringVal StringFunctions::ConcatWs(FunctionContext* context, const StringVal& s
     }
     // Record the count of valid string object.
     valid_num_children++;
+  }
+
+  if (total_size > StringVal::MAX_LENGTH) {
+    context->SetError("String length larger than allowed limit "
+                      "of 1 GB character data.");
+    return StringVal::null();
   }
 
   // If all data are invalid, or data size is zero, return empty string.

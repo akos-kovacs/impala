@@ -246,3 +246,25 @@ select repeat('the quick brown fox', 1024 * 1024 * 100)
 ---- CATCH
 repeat() result is larger than allowed limit of 1 GB character data
 =====
+---- QUERY
+select lpad('a', 1024 * 1024 * 1024 * 5, ' ');
+---- CATCH
+String length larger than allowed limit of 1 GB character data
+=====
+---- QUERY
+select rpad('a', 1024 * 1024 * 1024 * 5, ' ');
+---- CATCH
+String length larger than allowed limit of 1 GB character data
+=====
+---- QUERY
+select space(1024 * 1024 * 1024 * 5);
+---- CATCH
+String length larger than allowed limit of 1 GB character data
+=====
+---- QUERY
+set ENABLE_EXPR_REWRITES=0;
+select concat(lpad('foo', 1073741820 , ' '),lpad('foo', 1073741820 , ' '),lpad('foo', 1073741820 , ' '),lpad('foo', 1073741820 , ' '),lpad('foo', 1073741820 , ' '));
+---- CATCH
+String length larger than allowed limit of 1 GB character data
+=====
+
